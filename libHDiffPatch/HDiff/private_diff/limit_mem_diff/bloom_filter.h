@@ -64,9 +64,9 @@ public:
     }
 private:
     inline static size_t bitSizeToCount(size_t bitSize){ return (bitSize+(kBaseTBits-1))/kBaseTBits; }
-    typedef unsigned int base_t;
+    typedef size_t base_t;
     enum {
-        kBaseShr=5,
+        kBaseShr=(sizeof(base_t)==8)?6:((sizeof(base_t)==4)?5:0),
         kBaseTBits=(1<<kBaseShr),
         kBaseMask=kBaseTBits-1 };
     //assert(kBaseTBits==sizeof(base_t)*8);
@@ -110,9 +110,9 @@ private:
     }
     
     inline size_t hash0(T key)const { return (key^(key>>(sizeof(T)*4)))&m_bitSetMask; }
-    inline size_t hash1(T key)const { return ((~key)+(key << 15))%m_bitSetMask; }
+    inline size_t hash1(T key)const { return ((~key)+(key << (sizeof(T)*2+1))+1)%m_bitSetMask; }
     inline size_t hash2(T key)const {
-        size_t h=(sizeof(T)>4)?_hash2_64(key):_hash2_32((size_t)key); return h%(m_bitSetMask-2); }
+        size_t h=(sizeof(T)>4)?_hash2_64(key):_hash2_32((size_t)key); return h%(m_bitSetMask-1); }
     static size_t _hash2_32(size_t key){//from: https://gist.github.com/badboy/6267743
         const size_t c2=0x27d4eb2d; // a prime or an odd constant
         key = (key ^ 61) ^ (key >> 16);

@@ -2,7 +2,7 @@
 //
 /*
  The MIT License (MIT)
- Copyright (c) 2012-2017 HouSisong
+ Copyright (c) 2012-2018 HouSisong
  
  Permission is hereby granted, free of charge, to any person
  obtaining a copy of this software and associated documentation
@@ -76,15 +76,24 @@ bool check_compressed_diff_stream(const hpatch_TStreamInput*  newData,
 //  can control memory requires and run speed by different kMatchBlockSize value,
 //      but out_diff size is larger than create_compressed_diff()
 //  recommended used in limited environment or support large file
-//  kMatchBlockSize: recommended (1<<3)--(1<<14)
+//  kMatchBlockSize: recommended (1<<4)--(1<<14)
 //    if increase kMatchBlockSize then run faster and require less memory, but out_diff size increase
 //  NOTICE: out_diff->write()'s writeToPos may be back to update headData!
 //  throw std::runtime_error when I/O error,etc.
-static const size_t kMatchBlockSize_default = (1<<7);
-void create_compressed_diff_stream(const hpatch_TStreamInput* newData,
-                                   const hpatch_TStreamInput* oldData,
-                                   hpatch_TStreamOutput*      out_diff,
-                                   hdiff_TStreamCompress* compressPlugin=0,
+static const size_t kMatchBlockSize_default = (1<<6);
+void create_compressed_diff_stream(const hpatch_TStreamInput*  newData,
+                                   const hpatch_TStreamInput*  oldData,
+                                   const hpatch_TStreamOutput* out_diff,
+                                   const hdiff_TCompress* compressPlugin=0,
                                    size_t kMatchBlockSize=kMatchBlockSize_default);
+
+
+//resave compressed_diff
+//  decompress int_diff and recompress to out_diff
+//  throw std::runtime_error when input file error or I/O error,etc.
+void resave_compressed_diff(const hpatch_TStreamInput*  in_diff,
+                            hpatch_TDecompress*         decompressPlugin,
+                            const hpatch_TStreamOutput* out_diff,
+                            const hdiff_TCompress*      compressPlugin);
 
 #endif

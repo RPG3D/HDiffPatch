@@ -2,14 +2,17 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "group:/Users/Shared/HDiffPatch/builds/xcode/hdiffz.xcodeproj">
+      location = "group:hdiffz.xcodeproj">
    </FileRef>
    <FileRef
-      location = "group:/Users/Shared/HDiffPatch/builds/xcode/hpatchz.xcodeproj">
+      location = "group:hpatchz.xcodeproj">
    </FileRef>
    <Group
       location = "container:"
       name = "test">
+      <FileRef
+         location = "group:testHashClash.xcodeproj">
+      </FileRef>
       <FileRef
          location = "group:unitTest.xcodeproj">
       </FileRef>
@@ -21,13 +24,7 @@
       location = "container:"
       name = "lib">
       <FileRef
-         location = "group:lz4.xcodeproj">
-      </FileRef>
-      <FileRef
          location = "group:lzma.xcodeproj">
-      </FileRef>
-      <FileRef
-         location = "group:zstd.xcodeproj">
       </FileRef>
    </Group>
 </Workspace>

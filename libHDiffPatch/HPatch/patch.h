@@ -2,7 +2,7 @@
 //
 /*
  The MIT License (MIT)
- Copyright (c) 2012-2017 HouSisong
+ Copyright (c) 2012-2018 HouSisong
  
  Permission is hereby granted, free of charge, to any person
  obtaining a copy of this software and associated documentation
@@ -91,7 +91,9 @@ hpatch_BOOL patch_decompress(const hpatch_TStreamOutput* out_newData,
     
 //ON: for patch_decompress_with_cache(), preparatory load part of oldData into cache,
 //  cache memory size (temp_cache_end-temp_cache) the larger the better for large oldData file
-#define _IS_NEED_CACHE_OLD_BY_COVERS
+#ifndef _IS_NEED_CACHE_OLD_BY_COVERS
+#   define _IS_NEED_CACHE_OLD_BY_COVERS 1
+#endif
 
 //see patch_decompress()
 //  use larger memory cache to optimize speed
@@ -102,6 +104,8 @@ hpatch_BOOL patch_decompress_with_cache(const hpatch_TStreamOutput* out_newData,
                                         hpatch_TDecompress* decompressPlugin,
                                         unsigned char* temp_cache,unsigned char* temp_cache_end);
 
+//patch_decompress_repeat_out DEPRECATED
+//  will be remove in a future release version
 //see patch_decompress(), used (hpatch_kStreamCacheSize*5 stack memory) + (decompress*2 used memory)
 //  write newData twice and read newData once,slower than patch_decompress,but memroy requires to be halved.
 //  recommended used in limited memory environment
@@ -141,10 +145,11 @@ hpatch_BOOL hpatch_coverList_open_compressedDiff(hpatch_TCoverList*         out_
                                                  const hpatch_TStreamInput* compressedDiff,
                                                  hpatch_TDecompress*        decompressPlugin);
 hpatch_inline static
-void        hpatch_coverList_close(hpatch_TCoverList* coverList) {
+hpatch_BOOL hpatch_coverList_close(hpatch_TCoverList* coverList) {
+                                   hpatch_BOOL result=hpatch_TRUE;
                                    if ((coverList!=0)&&(coverList->ICovers)){
-                                       coverList->ICovers->close(coverList->ICovers);
-                                       hpatch_coverList_init(coverList); } }
+                                       result=coverList->ICovers->close(coverList->ICovers);
+                                       hpatch_coverList_init(coverList); } return result; }
 
 #ifdef __cplusplus
 }

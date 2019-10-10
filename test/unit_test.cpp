@@ -49,6 +49,7 @@ const long kRandTestCount=20000;
 //#define _CompressPlugin_zlib
 //#define _CompressPlugin_bz2
 //#define _CompressPlugin_lzma
+//#define _CompressPlugin_lzma2
 //#define _CompressPlugin_lz4
 //#define _CompressPlugin_lz4hc
 //#define _CompressPlugin_zstd
@@ -60,40 +61,62 @@ const long kRandTestCount=20000;
 
 
 #ifdef  _CompressPlugin_no
-    hdiff_TCompress* compressPlugin=0;
-    hdiff_TStreamCompress* compressStreamPlugin=0;
+    const hdiff_TCompress* compressPlugin=0;
     hpatch_TDecompress* decompressPlugin=0;
 #endif
 #ifdef  _CompressPlugin_zlib
-    hdiff_TCompress* compressPlugin=&zlibCompressPlugin;
-    hdiff_TStreamCompress* compressStreamPlugin=&zlibStreamCompressPlugin;
+    const hdiff_TCompress* compressPlugin=&zlibCompressPlugin.base;
     hpatch_TDecompress* decompressPlugin=&zlibDecompressPlugin;
 #endif
 #ifdef  _CompressPlugin_bz2
-    hdiff_TCompress* compressPlugin=&bz2CompressPlugin;
-    hdiff_TStreamCompress* compressStreamPlugin=&bz2StreamCompressPlugin;
+    const hdiff_TCompress* compressPlugin=&bz2CompressPlugin.base;
     hpatch_TDecompress* decompressPlugin=&bz2DecompressPlugin;
 #endif
 #ifdef  _CompressPlugin_lzma
-    hdiff_TCompress* compressPlugin=&lzmaCompressPlugin;
-    hdiff_TStreamCompress* compressStreamPlugin=&lzmaStreamCompressPlugin;
+    const hdiff_TCompress* compressPlugin=&lzmaCompressPlugin.base;
     hpatch_TDecompress* decompressPlugin=&lzmaDecompressPlugin;
 #endif
+#ifdef  _CompressPlugin_lzma2
+    const hdiff_TCompress* compressPlugin=&lzma2CompressPlugin.base;
+    hpatch_TDecompress* decompressPlugin=&lzma2DecompressPlugin;
+#endif
 #ifdef  _CompressPlugin_lz4
-    hdiff_TStreamCompress* compressStreamPlugin=&lz4StreamCompressPlugin;
-    hdiff_TCompress* compressPlugin=&lz4CompressPlugin;
+    const hdiff_TCompress* compressPlugin=&lz4CompressPlugin.base;
     hpatch_TDecompress* decompressPlugin=&lz4DecompressPlugin;
 #endif
 #ifdef  _CompressPlugin_lz4hc
-    hdiff_TStreamCompress* compressStreamPlugin=&lz4hcStreamCompressPlugin;
-    hdiff_TCompress* compressPlugin=&lz4hcCompressPlugin;
+    const hdiff_TCompress* compressPlugin=&lz4hcCompressPlugin.base;
     hpatch_TDecompress* decompressPlugin=&lz4DecompressPlugin;
 #endif
 #ifdef  _CompressPlugin_zstd
-    hdiff_TStreamCompress* compressStreamPlugin=&zstdStreamCompressPlugin;
-    hdiff_TCompress* compressPlugin=&zstdCompressPlugin;
+    const hdiff_TCompress* compressPlugin=&zstdCompressPlugin.base;
     hpatch_TDecompress* decompressPlugin=&zstdDecompressPlugin;
 #endif
+
+int testCompress(const char* str,const char* error_tag){
+    assert(  ((compressPlugin==0)&&(decompressPlugin==0))
+           ||((compressPlugin!=0)&&(decompressPlugin!=0)));
+    if (compressPlugin==0) return 0;
+    assert(decompressPlugin->is_can_open(compressPlugin->compressType()));
+    
+    const TByte* data=(const TByte*)str;
+    const size_t dataSize=strlen(str);
+    std::vector<TByte> code(compressPlugin->maxCompressedSize(dataSize));
+    size_t codeSize=hdiff_compress_mem(compressPlugin,code.data(),code.data()+code.size(),
+                                       data,data+dataSize);
+    if (codeSize>code.size()) {
+        printf("\n testCompress compress error!!! tag:%s\n",error_tag); return 1; }
+    code.resize(codeSize);
+    
+    std::vector<TByte> undata(dataSize);
+    if (!hpatch_deccompress_mem(decompressPlugin,code.data(),code.data()+code.size(),
+                                undata.data(),undata.data()+undata.size()))  {
+        printf("\n testCompress decompress error!!! tag:%s\n",error_tag); return 1; }
+    if (0!=memcmp(str,undata.data(),undata.size()))  {
+        printf("\n testCompress decompress data error!!! tag:%s\n",error_tag); return 1; }
+    return 0;
+}
+    
 
 static bool _patch_mem_stream(TByte* newData,TByte* newData_end,
                               const TByte* oldData,const TByte* oldData_end,
@@ -177,26 +200,27 @@ long attackPacth(TInt newSize,const TByte* oldData,const TByte* oldData_end,
 
 struct TVectorStreamOutput:public hpatch_TStreamOutput{
     explicit TVectorStreamOutput(std::vector<TByte>& _dst):dst(_dst){
-        this->streamHandle=this;
-        this->streamSize=-1;
+        this->streamImport=this;
+        this->streamSize=~(hpatch_StreamPos_t)0;
+        this->read_writed=0;
         this->write=_write;
     }
-    static long _write(hpatch_TStreamOutputHandle streamHandle,
-                       const hpatch_StreamPos_t writeToPos,
-                       const unsigned char* data,const unsigned char* data_end){
-        TVectorStreamOutput* self=(TVectorStreamOutput*)streamHandle;
+    static hpatch_BOOL _write(const hpatch_TStreamOutput* stream,
+                              const hpatch_StreamPos_t writeToPos,
+                              const unsigned char* data,const unsigned char* data_end){
+        TVectorStreamOutput* self=(TVectorStreamOutput*)stream->streamImport;
         std::vector<TByte>& dst=self->dst;
         size_t writeLen=(size_t)(data_end-data);
-        assert(writeToPos<=dst.size());
+        if (writeToPos>dst.size()) return false;
         if  (dst.size()==writeToPos){
             dst.insert(dst.end(),data,data_end);
         }else{
-            assert((size_t)(writeToPos+writeLen)==writeToPos+writeLen);
+            if (writeToPos+writeLen!=(size_t)(writeToPos+writeLen)) return false;
             if (dst.size()<writeToPos+writeLen)
                 dst.resize((size_t)(writeToPos+writeLen));
             memcpy(&dst[(size_t)writeToPos],data,writeLen);
         }
-        return (long)writeLen;
+        return true;
     }
     std::vector<TByte>& dst;
 };
@@ -213,7 +237,7 @@ long test(const TByte* newData,const TByte* newData_end,
         mem_as_hStreamInput(&newStream,newData,newData_end);
         mem_as_hStreamInput(&oldStream,oldData,oldData_end);
 
-        create_compressed_diff_stream(&newStream,&oldStream,&out_diffStream,compressStreamPlugin,1<<4);
+        create_compressed_diff_stream(&newStream,&oldStream,&out_diffStream,compressPlugin,1<<4);
         
         struct hpatch_TStreamInput in_diffStream;
         mem_as_hStreamInput(&in_diffStream,diffData.data(),diffData.data()+diffData.size());
@@ -294,6 +318,12 @@ void setRandData(std::vector<TByte>& data){
 int main(int argc, const char * argv[]){
     clock_t time1=clock();
     long errorCount=0;
+    errorCount+=testCompress("","c1");
+    errorCount+=testCompress("1","c2");
+    errorCount+=testCompress("12","c3");
+    errorCount+=testCompress("123","c4");
+    errorCount+=testCompress("123456789876543212345677654321234567765432","c5");
+    
     errorCount+=test("", "", "1");
     errorCount+=test("", "1", "2");
     errorCount+=test("1", "", "3");
