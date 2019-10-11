@@ -1,6 +1,6 @@
 
-xmake  f -p windows   HDiffPatch
-xmake -b HDiffPatch
+xmake  f -p windows
+xmake -b
 
 pause
 
