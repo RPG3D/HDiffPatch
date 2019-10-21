@@ -16,6 +16,7 @@ target("HDiffPatch")
 		--set_kind("shared")
 	end
 	
+	
 	if (is_os("android")) then
 		set_kind("shared")
 	end
