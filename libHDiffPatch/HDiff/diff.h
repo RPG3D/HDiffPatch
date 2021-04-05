@@ -70,6 +70,23 @@ bool check_compressed_diff_stream(const hpatch_TStreamInput*  newData,
                                   const hpatch_TStreamInput*  compressed_diff,
                                   hpatch_TDecompress* decompressPlugin);
 
+struct ICoverLinesListener {
+    void (*coverLines)(ICoverLinesListener* listener,hpatch_TCover* out_covers,size_t* coverCount,
+                       hpatch_StreamPos_t* newSize,hpatch_StreamPos_t* oldSize);
+};
+const size_t kDefaultStepMemSize =1024*256;
+
+//create a diffData between oldData and newData, the diffData saved as single compressed stream
+//  still under development!
+void create_single_compressed_diff(const unsigned char* newData,const unsigned char* newData_end,
+                                   const unsigned char* oldData,const unsigned char* oldData_end,
+                                   std::vector<unsigned char>& out_diff,ICoverLinesListener* listener=0,
+                                   const hdiff_TCompress* compressPlugin=0,int kMinSingleMatchScore=kMinSingleMatchScore_default,
+                                   size_t patchStepMemSize=kDefaultStepMemSize,bool _is_test_search_cover_by_stream=false);
+bool check_single_compressed_diff(const unsigned char* newData,const unsigned char* newData_end,
+                                  const unsigned char* oldData,const unsigned char* oldData_end,
+                                  const unsigned char* diff,const unsigned char* diff_end,
+                                  hpatch_TDecompress* decompressPlugin);
 
 
 //diff by stream:
@@ -89,7 +106,7 @@ void create_compressed_diff_stream(const hpatch_TStreamInput*  newData,
 
 
 //resave compressed_diff
-//  decompress int_diff and recompress to out_diff
+//  decompress in_diff and recompress to out_diff
 //  throw std::runtime_error when input file error or I/O error,etc.
 void resave_compressed_diff(const hpatch_TStreamInput*  in_diff,
                             hpatch_TDecompress*         decompressPlugin,
